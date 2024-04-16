@@ -1,3 +1,5 @@
+// TODO ソートがない場合のTableも作る
+
 import {
   Box,
   Checkbox,
@@ -157,7 +159,7 @@ const headCells: readonly HeadCell[] = [
 type EnhancedTableHeadProps = {
   numSelected: number;
   onRequestSort: (
-    event: React.MouseEvent<unknown>,
+    event: React.MouseEvent<HTMLSpanElement>,
     property: keyof Data
   ) => void;
   onSelectAllClick: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -176,9 +178,8 @@ const EnhancedTableHead = (props: EnhancedTableHeadProps) => {
     rowCount,
   } = props;
 
-  // TODO React.MouseEvent<unknown> unknownにしている理由は?
   const createSortHandler =
-    (property: keyof Data) => (event: React.MouseEvent<unknown>) => {
+    (property: keyof Data) => (event: React.MouseEvent<HTMLSpanElement>) => {
       onRequestSort(event, property);
     };
 
@@ -289,7 +290,7 @@ export const EnhancedTable = () => {
 
   // ソート順とソートするプロパティを更新する
   const handleRequestSort = (
-    event: React.MouseEvent<unknown>,
+    _event: React.MouseEvent<HTMLSpanElement>,
     property: keyof Data
   ) => {
     // orderByがData型のproperty and orderがascならtrue
@@ -313,7 +314,10 @@ export const EnhancedTable = () => {
   };
 
   // クリックされた行の選択状態を切り替える
-  const handleClick = (event: React.MouseEvent<unknown>, id: number) => {
+  const handleClick = (
+    _event: React.MouseEvent<HTMLTableRowElement>,
+    id: number
+  ) => {
     // 選択された行のindexを取得する
     const selectedIndex = selected.indexOf(id);
     let newSelected: readonly number[] = [];
@@ -333,7 +337,10 @@ export const EnhancedTable = () => {
     setSelected(newSelected);
   };
 
-  const handleChangePage = (event: unknown, newPage: number) => {
+  const handleChangePage = (
+    _event: React.MouseEvent<HTMLButtonElement, MouseEvent> | null,
+    newPage: number
+  ) => {
     setPage(newPage);
   };
 
