@@ -23,18 +23,13 @@ import {
 import { visuallyHidden } from "@mui/utils";
 import DeleteIcon from "@mui/icons-material/Delete";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import { useMemo, useState } from "react";
-
-type Order = "asc" | "desc";
-
-type Data = {
-  id: number;
-  calories: number;
-  carbs: number;
-  fat: number;
-  name: string;
-  protein: number;
-};
+import { useMemo } from "react";
+import { useSort } from "@/hooks/useSort";
+import { Data, Order } from "@/types/type";
+import { useSelection } from "@/hooks/useSelection";
+import { usePagination } from "@/hooks/usePagination";
+import { useDensity } from "@/hooks/useDensity";
+import { getComparator, stableSort } from "@/utils/sort";
 
 const createData = (
   id: number,
@@ -69,52 +64,6 @@ const rows = [
   createData(12, "Nougat", 360, 19.0, 9, 37.0),
   createData(13, "Oreo", 437, 18.0, 63, 4.0),
 ];
-
-// 指定されたプロパティ (`orderBy`) に基づいて、
-// 2つのオブジェクト (`a` と `b`) を比較し、降順でソートするための比較関数
-// NOTE: <T,> ,がないとHTMLのTagとして認識され、エラーになる
-const descendingComparator = <T,>(a: T, b: T, orderBy: keyof T): number => {
-  if (b[orderBy] < a[orderBy]) {
-    return -1;
-  }
-  if (b[orderBy] > a[orderBy]) {
-    return 1;
-  }
-  return 0;
-};
-
-// 指定された並び順（昇順または降順）とソートするプロパティに基づいて、比較関数を返します。
-const getComparator = <Key extends keyof any>(
-  order: Order,
-  orderBy: Key
-): ((
-  a: { [key in Key]: number | string },
-  b: { [key in Key]: number | string }
-) => number) => {
-  return order === "desc"
-    ? (a, b) => descendingComparator(a, b, orderBy)
-    : (a, b) => -descendingComparator(a, b, orderBy);
-};
-
-// TODO 理解する コメントを理解して、書き換えられるか試す
-// Since 2020 all major browsers ensure sort stability with Array.prototype.sort().
-// stableSort() brings sort stability to non-modern browsers (notably IE11). If you
-// only support modern browsers you can replace stableSort(exampleArray, exampleComparator)
-// with exampleArray.slice().sort(exampleComparator)
-function stableSort<T>(
-  array: readonly T[],
-  comparator: (a: T, b: T) => number
-) {
-  const stabilizedThis = array.map((el, index) => [el, index] as [T, number]);
-  stabilizedThis.sort((a, b) => {
-    const order = comparator(a[0], b[0]);
-    if (order !== 0) {
-      return order;
-    }
-    return a[1] - b[1];
-  });
-  return stabilizedThis.map((el) => el[0]);
-}
 
 type HeadCell = {
   id: keyof Data;
@@ -281,81 +230,12 @@ const EnhancedTableToolbar = (props: EnhancedTableToolbarProps) => {
 };
 
 export const EnhancedTable = () => {
-  const [order, setOrder] = useState<Order>("asc");
-  const [orderBy, setOrderBy] = useState<keyof Data>("calories");
-  const [selected, setSelected] = useState<readonly number[]>([]);
-  const [page, setPage] = useState(0);
-  const [dense, setDense] = useState(false);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
-
-  // ソート順とソートするプロパティを更新する
-  const handleRequestSort = (
-    _event: React.MouseEvent<HTMLSpanElement>,
-    property: keyof Data
-  ) => {
-    // orderByがData型のproperty and orderがascならtrue
-    const isAsc = orderBy === property && order === "asc";
-    // ascならdescにする そうでないならascにする
-    setOrder(isAsc ? "desc" : "asc");
-    setOrderBy(property);
-  };
-
-  // すべての行を選択または選択解除するために使用する
-  const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
-    // チェック状態になったら
-    if (event.target.checked) {
-      // newSelectedに全rowsのidを代入する newSelectedは配列
-      const newSelected = rows.map((n) => n.id);
-      setSelected(newSelected);
-      return;
-    }
-    // チェック解除されたら選択状態をresetする
-    setSelected([]);
-  };
-
-  // クリックされた行の選択状態を切り替える
-  const handleClick = (
-    _event: React.MouseEvent<HTMLTableRowElement>,
-    id: number
-  ) => {
-    // 選択された行のindexを取得する
-    const selectedIndex = selected.indexOf(id);
-    let newSelected: readonly number[] = [];
-
-    if (selectedIndex === -1) {
-      newSelected = newSelected.concat(selected, id);
-    } else if (selectedIndex === 0) {
-      newSelected = newSelected.concat(selected.slice(1));
-    } else if (selectedIndex === selected.length - 1) {
-      newSelected = newSelected.concat(selected.slice(0, -1));
-    } else if (selectedIndex > 0) {
-      newSelected = newSelected.concat(
-        selected.slice(0, selectedIndex),
-        selected.slice(selectedIndex + 1)
-      );
-    }
-    setSelected(newSelected);
-  };
-
-  const handleChangePage = (
-    _event: React.MouseEvent<HTMLButtonElement, MouseEvent> | null,
-    newPage: number
-  ) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleChangeDense = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setDense(event.target.checked);
-  };
-
-  const isSelected = (id: number) => selected.indexOf(id) !== -1;
+  const { order, orderBy, handleRequestSort } = useSort<Data>("calories");
+  const { selected, handleSelectAllClick, handleClick, isSelected } =
+    useSelection([]);
+  const { page, rowsPerPage, handleChangePage, handleChangeRowsPerPage } =
+    usePagination(5);
+  const { dense, handleChangeDense } = useDensity();
 
   // 空の行が含まれる最後のページに到達したときにレイアウトがジャンプしないようにする
   const emptyRows =
