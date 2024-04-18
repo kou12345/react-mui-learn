@@ -232,7 +232,7 @@ const EnhancedTableToolbar = (props: EnhancedTableToolbarProps) => {
 export const EnhancedTable = () => {
   const { order, orderBy, handleRequestSort } = useSort<Data>("calories");
   const { selected, handleSelectAllClick, handleClick, isSelected } =
-    useSelection([]);
+    useSelection(rows);
   const { page, rowsPerPage, handleChangePage, handleChangeRowsPerPage } =
     usePagination(5);
   const { dense, handleChangeDense } = useDensity();
